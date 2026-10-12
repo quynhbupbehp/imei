@@ -3,258 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trích xuất IMEI / SN Nhanh</title>
-    <!-- Thư viện Tesseract.js để đọc chữ từ ảnh (OCR) -->
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <title>Auto Extract IMEI & iCloud</title>
+    <!-- Thư viện OCR Tesseract.js để máy tự đọc chữ trên ảnh -->
+    <script src="https://unpkg.com/tesseract.js@v4.0.2/dist/tesseract.min.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f6f9;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-        }
-        .container {
-            width: 100%;
-            max-width: 500px;
-            background: #fff;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        }
-        h2 { text-align: center; color: #333; margin-top: 0; }
-        .upload-box {
-            border: 2px dashed #007bff;
-            padding: 25px;
-            text-align: center;
-            border-radius: 8px;
-            cursor: pointer;
-            background: #f8f9fa;
-            margin-bottom: 15px;
-            transition: 0.2s;
-            display: block;
-        }
-        .upload-box:hover, .upload-box.dragover { 
-            background: #e9ecef; 
-            border-color: #28a745;
-        }
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f4f4f9; max-width: 500px; margin: auto; }
+        .card { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .drop-zone { border: 2px dashed #007bff; padding: 20px; text-align: center; border-radius: 5px; cursor: pointer; background: #f8f9fa; margin-bottom: 15px; }
+        .drop-zone:hover { background: #e9ecef; }
         input[type="file"] { display: none; }
-        #preview {
-            max-width: 100%;
-            max-height: 200px;
-            display: none;
-            margin: 0 auto 15px auto;
-            border-radius: 6px;
-        }
-        .status {
-            text-align: center;
-            font-weight: bold;
-            color: #007bff;
-            margin-bottom: 15px;
-        }
-        .result-group {
-            margin-bottom: 12px;
-            background: #f1f3f5;
-            padding: 10px 12px;
-            border-radius: 6px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .result-group span { font-weight: bold; color: #495057; }
-        .result-group input {
-            border: none;
-            background: transparent;
-            font-size: 15px;
-            color: #212529;
-            width: 60%;
-            outline: none;
-            font-family: monospace;
-        }
-        button.copy-btn {
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 13px;
-        }
-        button.copy-btn:hover { background: #218838; }
+        .info { margin-bottom: 10px; font-size: 16px; word-break: break-all; }
+        button { background: #28a745; color: white; border: none; padding: 12px; font-size: 16px; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; display: none; margin-top: 15px; }
+        button:hover { background: #218838; }
+        #status { font-style: italic; color: #6c75d7; text-align: center; margin: 10px 0; }
+        #preview { max-width: 100%; max-height: 200px; display: block; margin: 10px auto; border-radius: 5px; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>Trích Xuất IMEI / SN</h2>
+<div class="card">
+    <h3>Trợ lý Tự động hóa IMEI & iCloud</h3>
     
-    <label class="upload-box" id="dropZone">
-        📁 Bấm vào đây để chọn ảnh hoặc kéo thả ảnh vào đây
-        <input type="file" id="imageInput" accept="image/*">
-    </label>
-
-    <img id="preview" alt="Preview">
-    <div class="status" id="statusText"></div>
-
-    <div id="results">
-        <div class="result-group">
-            <span>SN:</span>
-            <input type="text" id="snVal" readonly placeholder="Chưa có...">
-            <button class="copy-btn" onclick="copyText('snVal')">Copy</button>
-        </div>
-        <div class="result-group">
-            <span>MEID:</span>
-            <input type="text" id="meidVal" readonly placeholder="Chưa có...">
-            <button class="copy-btn" onclick="copyText('meidVal')">Copy</button>
-        </div>
-        <div class="result-group">
-            <span>EID:</span>
-            <input type="text" id="eidVal" readonly placeholder="Chưa có...">
-            <button class="copy-btn" onclick="copyText('eidVal')">Copy</button>
-        </div>
-        <div class="result-group">
-            <span>IMEI 1:</span>
-            <input type="text" id="imei1Val" readonly placeholder="Chưa có...">
-            <button class="copy-btn" onclick="copyText('imei1Val')">Copy</button>
-        </div>
-        <div class="result-group">
-            <span>IMEI 2:</span>
-            <input type="text" id="imei2Val" readonly placeholder="Chưa có...">
-            <button class="copy-btn" onclick="copyText('imei2Val')">Copy</button>
-        </div>
+    <div class="drop-zone" onclick="document.getElementById('fileInput').click()">
+        📂 Bấm vào đây hoặc kéo thả ảnh chụp màn hình vào đây
+        <input type="file" id="fileInput" accept="image/*" onchange="handleImage(this.files[0])">
     </div>
+
+    <img id="preview" style="display:none;" />
+    <div id="status"></div>
+
+    <div class="info"><strong>IMEI:</strong> <span id="resImei">...</span></div>
+    <div class="info"><strong>Tài khoản iCloud:</strong> <span id="resIcloud">...</span></div>
+
+    <button id="copyBtn" onclick="copyData()">📋 Sao chép cả IMEI và iCloud</button>
 </div>
 
 <script>
-    const imageInput = document.getElementById('imageInput');
+async function handleImage(file) {
+    if (!file) return;
+
+    // Hiển thị ảnh xem trước
     const preview = document.getElementById('preview');
-    const statusText = document.getElementById('statusText');
-    const dropZone = document.getElementById('dropZone');
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = 'block';
 
-    // Xử lý khi chọn file qua input click
-    imageInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file) handleFile(file);
-    });
+    const status = document.getElementById('status');
+    status.innerText = "Đang quét thông tin từ ảnh, vui lòng đợi...";
 
-    // Các sự kiện hỗ trợ Kéo & Thả (Drag and Drop)
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropZone.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            dropZone.classList.add('dragover');
-        }, false);
-    });
-
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            dropZone.classList.remove('dragover');
-        }, false);
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-        const dt = e.dataTransfer;
-        const files = dt.files;
-        if (files && files.length > 0) {
-            const file = files[0];
-            if (file.type.startsWith('image/')) {
-                imageInput.files = files; // Gán file vào input ẩn nếu cần
-                handleFile(file);
-            } else {
-                alert("Vui lòng thả file định dạng hình ảnh!");
-            }
-        }
-    });
-
-    // Hàm xử lý chung cho file ảnh (Hiển thị preview và gọi OCR)
-    function handleFile(file) {
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            preview.style.display = 'block';
-            preview.src = event.target.result;
-            processImage(event.target.result);
-        }
-        reader.readAsDataURL(file);
-    }
-
-    async function processImage(imageSrc) {
-        statusText.innerText = "⏳ Đang quét chữ từ ảnh...";
-        
-        // Reset các ô
-        document.getElementById('snVal').value = '';
-        document.getElementById('meidVal').value = '';
-        document.getElementById('eidVal').value = '';
-        document.getElementById('imei1Val').value = '';
-        document.getElementById('imei2Val').value = '';
-
-        try {
-            const worker = await Tesseract.createWorker('eng');
-            const ret = await worker.recognize(imageSrc);
-            await worker.terminate();
-
-            const text = ret.data.text;
-            console.log("Kết quả OCR thô:", text);
-
-            statusText.innerText = "✅ Quét xong!";
-            parseTextData(text);
-        } catch (error) {
-            statusText.innerText = "❌ Lỗi khi đọc ảnh!";
-            console.error("Lỗi chi tiết Tesseract:", error);
-        }
-    }
-
-    function parseTextData(rawText) {
-        // 1. Lọc SN/S/N
-        let snMatch = rawText.match(/(?:SN|S\/N)[:\s]*([A-Z0-9]{8,15})/i);
-        if (snMatch) document.getElementById('snVal').value = snMatch[1];
-
-        // 2. Lọc MEID
-        let meidMatch = rawText.match(/MEID[:\s]*([0-9A-F]{14,15})/i);
-        if (meidMatch) document.getElementById('meidVal').value = meidMatch[1];
-
-        // 3. Lọc EID
-        let eidMatch = rawText.match(/EID[:\s]*([\d\s]{30,45})/i);
-        if (eidMatch) {
-            document.getElementById('eidVal').value = eidMatch[1].replace(/\s+/g, '');
-        }
-
-        // 4. Lọc IMEI triệt để bằng cách gom toàn bộ chữ số và bắt chuỗi 15 số
-        const allDigits = rawText.replace(/\D/g, '');
-        let allImeis = [];
-        for (let i = 0; i <= allDigits.length - 15; i++) {
-            let subStr = allDigits.substring(i, i + 15);
-            if (/^\d{15}$/.test(subStr) && !allImeis.includes(subStr)) {
-                allImeis.push(subStr);
-            }
-        }
-
-        if (allImeis.length > 0) {
-            document.getElementById('imei1Val').value = allImeis[0];
-        }
-        if (allImeis.length > 1) {
-            document.getElementById('imei2Val').value = allImeis[1];
-        }
-    }
-
-    function copyText(elementId) {
-        const input = document.getElementById(elementId);
-        if (!input.value) return;
-        navigator.clipboard.writeText(input.value).then(() => {
-            let btn = input.nextElementSibling;
-            let oldText = btn.innerText;
-            btn.innerText = "Đã copy!";
-            btn.style.background = "#ffc107";
-            btn.style.color = "#000";
-            setTimeout(() => {
-                btn.innerText = oldText;
-                btn.style.background = "#28a745";
-                btn.style.color = "#fff";
-            }, 1000);
+    try {
+        // Dùng Tesseract đọc chữ tiếng Anh/Số trên ảnh
+        const { data: { text } } = await Tesseract.recognize(file, 'eng', {
+            logger: m => {} 
         });
+
+        status.innerText = "Quét hoàn tất!";
+        parseData(text);
+    } catch (error) {
+        status.innerText = "Lỗi khi đọc ảnh, vui lòng thử lại!";
+        console.error(error);
     }
+}
+
+function parseData(text) {
+    // Xử lý tìm kiếm IMEI (dãy 15 chữ số)
+    let imeiMatch = text.match(/\b\d{15}\b/);
+    if (!imeiMatch) {
+        // Trường hợp IMEI bị ngắt khoảng trắng (vd: 35 906933 ...)
+        let cleanText = text.replace(/\s+/g, '');
+        let matchSpace = cleanText.match(/\b\d{15}\b/);
+        if (matchSpace) imeiMatch = matchSpace;
+    }
+
+    // Xử lý tìm kiếm email iCloud (@gmail.com hoặc @icloud.com)
+    let icloudMatch = text.match(/[\w\.\•\*]+@(gmail|icloud)\.com/i);
+
+    let imei = imeiMatch ? imeiMatch[0].replace(/\s+/g, '') : "Không tìm thấy";
+    let icloud = icloudMatch ? icloudMatch[0] : "Không tìm thấy";
+
+    // Nếu che ký tự dạng w•••••@gmail.com thì vẫn bắt bình thường
+    document.getElementById('resImei').innerText = imei;
+    document.getElementById('resIcloud').innerText = icloud;
+
+    if (imei !== "Không tìm thấy" || icloud !== "Không tìm thấy") {
+        document.getElementById('copyBtn').style.display = "block";
+    }
+}
+
+function copyData() {
+    const imei = document.getElementById('resImei').innerText;
+    const icloud = document.getElementById('resIcloud').innerText;
+    const textToCopy = `IMEI: ${imei}\nTài khoản iCloud: ${icloud}`;
+
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        alert("Đã sao chép thành công vào bộ nhớ tạm!");
+    });
+}
 </script>
 
 </body>
