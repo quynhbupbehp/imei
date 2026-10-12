@@ -191,17 +191,18 @@
         document.getElementById('imei2Val').value = '';
 
         try {
-            const { data: { text } } = await Tesseract.recognize(
-                imageSrc,
-                'eng',
-                { logger: m => {} } 
-            );
+            const worker = await Tesseract.createWorker('eng');
+            const ret = await worker.recognize(imageSrc);
+            await worker.terminate();
+
+            const text = ret.data.text;
+            console.log("Kết quả OCR thô:", text);
 
             statusText.innerText = "✅ Quét xong!";
             parseTextData(text);
         } catch (error) {
             statusText.innerText = "❌ Lỗi khi đọc ảnh!";
-            console.error(error);
+            console.error("Lỗi chi tiết Tesseract:", error);
         }
     }
 
