@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trích xuất IMEI / SN Nhanh</title>
+    <!-- Thư viện Tesseract.js để đọc chữ từ ảnh (OCR) -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h2 { text-align: center; color: #333; margin-top: 0; }
+        .upload-box {
+            border: 2px dashed #007bff;
+            padding: 25px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #f8f9fa;
+            margin-bottom: 15px;
+            transition: 0.2s;
+            display: block;
+        }
+        .upload-box:hover, .upload-box.dragover { 
+            background: #e9ecef; 
+            border-color: #28a745;
+        }
+        input[type="file"] { display: none; }
+        #preview {
+            max-width: 100%;
+            max-height: 200px;
+            display: none;
+            margin: 0 auto 15px auto;
+            border-radius: 6px;
+        }
+        .status {
+            text-align: center;
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 15px;
+        }
+        .result-group {
+            margin-bottom: 12px;
+            background: #f1f3f5;
+            padding: 10px 12px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .result-group span { font-weight: bold; color: #495057; }
+        .result-group input {
+            border: none;
+            background: transparent;
+            font-size: 15px;
+            color: #212529;
+            width: 60%;
+            outline: none;
+            font-family: monospace;
+        }
+        button.copy-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        button.copy-btn:hover { background: #218838; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Trích Xuất IMEI / SN</h2>
+    
+    <label class="upload-box" id="dropZone">
+        📁 Bấm vào đây để chọn ảnh hoặc kéo thả ảnh vào đây
+        <input type="file" id="imageInput" accept="image/*">
+    </label>
+
+    <img id="preview" alt="Preview">
+    <div class="status" id="statusText"></div>
+
+    <div id="results">
+        <div class="result-group">
+            <span>SN:</span>
+            <input type="text" id="snVal" readonly placeholder="Chưa có...">
+            <button class="copy-btn" onclick="copyText('snVal')">Copy</button>
+        </div>
+        <div class="result-group">
+            <span>MEID:</span>
+            <input type="text" id="meidVal" readonly placeholder="Chưa có...">
+            <button class="copy-btn" onclick="copyText('meidVal')">Copy</button>
+        </div>
+        <div class="result-group">
+            <span>EID:</span>
+            <input type="text" id="eidVal" readonly placeholder="Chưa có...">
+            <button class="copy-btn" onclick="copyText('eidVal')">Copy</button>
+        </div>
+        <div class="result-group">
+            <span>IMEI 1:</span>
+            <input type="text" id="imei1Val" readonly placeholder="Chưa có...">
+            <button class="copy-btn" onclick="copyText('imei1Val')">Copy</button>
+        </div>
+        <div class="result-group">
+            <span>IMEI 2:</span>
+            <input type="text" id="imei2Val" readonly placeholder="Chưa có...">
+            <button class="copy-btn" onclick="copyText('imei2Val')">Copy</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const imageInput = document.getElementById('imageInput');
+    const preview = document.getElementById('preview');
+    const statusText = document.getElementById('statusText');
+    const dropZone = document.getElementById('dropZone');
+
+    // Xử lý khi chọn file qua input click
+    imageInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) handleFile(file);
+    });
+
+    // Các sự kiện hỗ trợ Kéo & Thả (Drag and Drop)
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.add('dragover');
+        }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('dragover');
+        }, false);
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files && files.length > 0) {
+            const file = files[0];
+            if (file.type.startsWith('image/')) {
+                imageInput.files = files; // Gán file vào input ẩn nếu cần
+                handleFile(file);
+            } else {
+                alert("Vui lòng thả file định dạng hình ảnh!");
+            }
+        }
+    });
+
+    // Hàm xử lý chung cho file ảnh (Hiển thị preview và gọi OCR)
+    function handleFile(file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            preview.style.display = 'block';
+            preview.src = event.target.result;
+            processImage(event.target.result);
+        }
+        reader.readAsDataURL(file);
+    }
+
+    async function processImage(imageSrc) {
+        statusText.innerText = "⏳ Đang quét chữ từ ảnh...";
+        
+        // Reset các ô
+        document.getElementById('snVal').value = '';
+        document.getElementById('meidVal').value = '';
+        document.getElementById('eidVal').value = '';
+        document.getElementById('imei1Val').value = '';
+        document.getElementById('imei2Val').value = '';
+
+        try {
+            const { data: { text } } = await Tesseract.recognize(
+                imageSrc,
+                'eng',
+                { logger: m => {} } 
+            );
+
+            statusText.innerText = "✅ Quét xong!";
+            parseTextData(text);
+        } catch (error) {
+            statusText.innerText = "❌ Lỗi khi đọc ảnh!";
+            console.error(error);
+        }
+    }
+
+    function parseTextData(rawText) {
+        // 1. Lọc SN/S/N
+        let snMatch = rawText.match(/(?:SN|S\/N)[:\s]*([A-Z0-9]{8,15})/i);
+        if (snMatch) document.getElementById('snVal').value = snMatch[1];
+
+        // 2. Lọc MEID
+        let meidMatch = rawText.match(/MEID[:\s]*([0-9A-F]{14,15})/i);
+        if (meidMatch) document.getElementById('meidVal').value = meidMatch[1];
+
+        // 3. Lọc EID
+        let eidMatch = rawText.match(/EID[:\s]*([\d\s]{30,45})/i);
+        if (eidMatch) {
+            document.getElementById('eidVal').value = eidMatch[1].replace(/\s+/g, '');
+        }
+
+        // 4. Lọc IMEI triệt để bằng cách gom toàn bộ chữ số và bắt chuỗi 15 số
+        const allDigits = rawText.replace(/\D/g, '');
+        let allImeis = [];
+        for (let i = 0; i <= allDigits.length - 15; i++) {
+            let subStr = allDigits.substring(i, i + 15);
+            if (/^\d{15}$/.test(subStr) && !allImeis.includes(subStr)) {
+                allImeis.push(subStr);
+            }
+        }
+
+        if (allImeis.length > 0) {
+            document.getElementById('imei1Val').value = allImeis[0];
+        }
+        if (allImeis.length > 1) {
+            document.getElementById('imei2Val').value = allImeis[1];
+        }
+    }
+
+    function copyText(elementId) {
+        const input = document.getElementById(elementId);
+        if (!input.value) return;
+        navigator.clipboard.writeText(input.value).then(() => {
+            let btn = input.nextElementSibling;
+            let oldText = btn.innerText;
+            btn.innerText = "Đã copy!";
+            btn.style.background = "#ffc107";
+            btn.style.color = "#000";
+            setTimeout(() => {
+                btn.innerText = oldText;
+                btn.style.background = "#28a745";
+                btn.style.color = "#fff";
+            }, 1000);
+        });
+    }
+</script>
+
+</body>
+</html>
